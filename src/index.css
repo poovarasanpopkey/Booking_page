@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+
+
+.main {
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: justify;
+  color: #213547;
+  background-color: rgb(251, 249, 249);
+  border-radius: 20px;
+  border: 2px solid rgb(213, 213, 213);
+  margin-top: 50px;
+  margin-bottom: 50px;
+
+
+}
+
+h3 {
+  font-size: 2.2em;
+  line-height: 1.1;
+  color: #213547;
+
+}
+
+h4 {
+  font-size: 1.1em;
+  line-height: 1.1;
+  color: #213547;
+
+}
+
+.para {
+  padding: 1.5em 0;
+  font-size: 1.1em;
+  overflow: hidden;
+  line-height: 2;
+  color: #213547;
+
+
+}
+
+.pop-key {
+  font-family: 'Roboto', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.1rem;
+}
+
+.pop-key-blue {
+  color: #007bff;
+}
+
+.pop-key-black {
+  color: #000;
+}
+
+@media screen and (max-width: 480px) {
+  .para {
+    line-height: 1.5;
+  }
+
+  .main {
+    margin-top: 20px;
+    margin-bottom: 20px;
+  }
+}

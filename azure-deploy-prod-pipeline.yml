@@ -1,0 +1,41 @@
+trigger:
+  branches:
+    include:
+      - main
+pr:
+ branches:
+  include:
+    - main
+jobs:
+- deployment: VMDeploy
+  displayName: Deploy to VM
+  environment: 
+    name: popkeyin_Prod
+    resourceType: virtualMachine
+    resourceName: Prod-Server 
+  strategy:
+    runOnce:
+      deploy:
+          steps:
+            - task: Bash@3
+              inputs:
+                targetType: 'inline'
+                script: |
+                  pwd
+                  docker stop booking_page_popoutbox || true
+                  docker rm booking_page_popoutbox || true
+                  docker stop booking_page_popkeyin || true
+                  docker rm booking_page_popkeyin || true
+                  docker rmi registry.digitalocean.com/popkey-repo/booking_page || true
+            - task: Docker@2
+              displayName: 'Popoutbox'
+              inputs:
+                containerRegistry: 'docker_SC'
+                command: 'run'
+                arguments: '-d -p 8090:80 --name booking_page_popoutbox registry.digitalocean.com/popkey-repo/booking_page:latest'
+            - task: Docker@2
+              displayName: 'Popkeyin'
+              inputs:
+                containerRegistry: 'docker_SC'
+                command: 'run'
+                arguments: '-d -p 8080:80 --name booking_page_popkeyin registry.digitalocean.com/popkey-repo/booking_page:latest'                

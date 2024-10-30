@@ -1,0 +1,101 @@
+trigger:
+  branches:
+    include:
+      - feature*
+pr:
+ branches:
+  include:
+    - feature*
+
+variables:
+  imageRepository: 'popkey-repo/booking_page'
+  dockerfilePath: '**/Dockerfile'
+  containerRegistry: 'docker_SC'
+  tag: '$(Build.BuildNumber)'
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Build
+    displayName: Build stage
+    jobs:
+      - job: CI
+        displayName: Build & Push Container Images
+        steps:
+        - task: Docker@2
+          displayName: Docker Build
+          condition: succeeded()
+          inputs:
+            command: build
+            containerRegistry: $(containerRegistry)
+            dockerfile: $(dockerfilePath)
+            repository: $(imageRepository)
+            tags: |
+              $(tag)
+              latest
+        - script: |
+            sudo apt-get install wget apt-transport-https gnupg lsb-release
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+            echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+            sudo apt-get update
+            sudo apt-get install trivy
+                      
+        - task: Bash@3
+          displayName: "Run Trivy Scan"
+          inputs:
+            targetType: 'inline'
+            script: |
+              trivy image --exit-code 0 --severity LOW,MEDIUM --format template --template "@junit.tpl" -o junit-report-low-medium.xml  registry.digitalocean.com/$(imageRepository):$(tag)
+              trivy image --exit-code 0 --severity HIGH,CRITICAL --format template --template "@junit.tpl" -o junit-report-high-crit.xml  registry.digitalocean.com/$(imageRepository):$(tag)
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '**/junit-report-low-medium.xml'
+            mergeTestResults: true
+            failTaskOnFailedTests: false
+            testRunTitle: 'Trivy - low and medium Vulnerabilities'
+          condition: 'always()'
+        - task: PublishTestResults@2
+          inputs:
+            testResultsFormat: 'JUnit'
+            testResultsFiles: '**/junit-report-high-crit.xml'
+            mergeTestResults: true
+            failTaskOnFailedTests: false
+            testRunTitle: 'Trivy - high and critical Vulnerabilities'
+          condition: 'always()'
+        - task: Docker@2
+          displayName: Docker Push
+          condition: succeeded()
+          inputs:
+            containerRegistry: $(containerRegistry)
+            repository: $(imageRepository)
+            command: push
+            tags: |
+              $(tag)
+              latest
+      - deployment: CD
+        displayName: Deploy to VM
+        dependsOn: CI
+        environment: 
+          name: popkeyin_Test
+          resourceType: virtualMachine
+          resourceName: hkcyz6ljte
+        strategy:
+          runOnce:
+            deploy:
+                steps:
+                  - task: Bash@3
+                    inputs:
+                      targetType: 'inline'
+                      script: |
+                        pwd
+                        docker stop booking_page || true
+                        docker rm booking_page || true
+                        docker rmi registry.digitalocean.com/popkey-repo/booking_page || true
+                  - task: Docker@2
+                    displayName: 'Run Docker command'
+                    inputs:
+                      containerRegistry: 'docker_SC'
+                      command: 'run'
+                      arguments: '-d -p 8090:80 --name booking_page registry.digitalocean.com/popkey-repo/booking_page:latest'
+              
